@@ -35,8 +35,18 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(32px,5.4vw,50px);l
 .sub{color:var(--body);max-width:62ch;margin:0 0 24px;font-size:16px}
 .sub a{text-decoration-thickness:1px;text-underline-offset:2px}
 
+/* hero: big next-due headline */
+.hero{margin:0 0 20px}
+.hero .htag{font:600 12px var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.hero .hdate{font-family:var(--display);font-weight:700;letter-spacing:-0.02em;font-size:clamp(30px,5.2vw,44px);line-height:1.05;margin:0 0 6px;color:var(--ink)}
+.hero .hdate.overdue{color:var(--red)}
+.hero .hdate.done{color:var(--green)}
+.hero .htitle{font:500 16px var(--sans);color:var(--body);margin:0}
+.hero .htitle b{color:var(--ink);font-weight:600}
+.hero .hgo{display:inline-block;margin-top:10px;font:500 13px var(--mono);color:var(--blue);text-decoration:none;border-bottom:1px solid var(--blue-line)}
+
 /* syllabus card */
-.syl{border:1px solid var(--rule);background:var(--panel);border-radius:7px;padding:4px 18px;margin:0 0 26px}
+.syl{border:1px solid var(--rule);background:var(--panel);border-radius:7px;padding:4px 18px;margin:36px 0 0}
 .syl dl{display:grid;grid-template-columns:130px 1fr;gap:0;margin:0}
 .syl dt{font:500 12.5px var(--mono);color:var(--muted);padding:9px 0;border-bottom:1px solid var(--rule)}
 .syl dd{margin:0;padding:9px 0;font-size:14.5px;color:var(--body);border-bottom:1px solid var(--rule)}
@@ -138,8 +148,6 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(32px,5.4vw,50px);l
 .drop b{color:var(--ink);font-weight:600}
 .sub-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:11px 0 0}
 .sub-actions .sp{flex:1}
-.editor{width:100%;min-height:230px;font:400 13px/1.6 var(--mono);padding:11px;border:1px solid var(--rule2);border-radius:6px;background:#fff;color:var(--ink);resize:vertical}
-.editor[hidden]{display:none}
 .msg{font:400 12.5px var(--mono);margin:10px 0 0}
 .msg.good{color:var(--green)}
 .msg.bad{color:var(--red)}
@@ -182,18 +190,6 @@ footer a:hover{color:var(--blue)}
   <p class="kicker">Self-paced section · <a id="repotop" href="#">repo</a></p>
   <h1>Practical Deep Learning for Coders</h1>
   <p class="sub">A self-run section of <a href="https://course.fast.ai/">course.fast.ai</a> taught by Jeremy Howard. Twelve weeks. Each week: watch the lecture, work the notebooks, read the chapter, then submit notes. Notes are due Sunday night and are stored in this site's own GitHub repo.</p>
-
-  <div class="syl">
-    <dl>
-      <dt>Term</dt><dd id="syl-term">loading</dd>
-      <dt>Meetings</dt><dd>Self-paced. One lesson per week, on your own clock.</dd>
-      <dt>Workload</dt><dd>About 8 hours a week on lesson weeks, 4 to 5 on review weeks.</dd>
-      <dt>Text</dt><dd><a href="https://github.com/fastai/fastbook">Deep Learning for Coders with fastai and PyTorch</a>, free notebook edition.</dd>
-      <dt>Notebooks</dt><dd>Kaggle or Colab, linked per week below.</dd>
-      <dt>Assessment</dt><dd>One notes file per week. Submitted or not submitted. On time or late.</dd>
-      <dt>Late policy</dt><dd>Late work is accepted and marked late. The record is the point.</dd>
-    </dl>
-  </div>
 </header>
 
 <div class="conn" id="conn">
@@ -220,6 +216,8 @@ footer a:hover{color:var(--blue)}
   <p class="warn">The token stays in this browser's local storage on your machine and is sent only to api.github.com. Scoped to one repo with contents access, the worst case if it leaks is someone writing to your notes repo. Anyone can read your notes either way, the repo is public. Without a token you can still read this page, you just cannot submit from it.</p>
 </div>
 
+<section class="hero" id="hero"></section>
+
 <section class="board" id="board"></section>
 
 <section class="prog">
@@ -229,6 +227,18 @@ footer a:hover{color:var(--blue)}
 </section>
 
 <main id="weeks"></main>
+
+<div class="syl">
+  <dl>
+    <dt>Term</dt><dd id="syl-term">loading</dd>
+    <dt>Meetings</dt><dd>Self-paced. One lesson per week, on your own clock.</dd>
+    <dt>Workload</dt><dd>About 8 hours a week on lesson weeks, 4 to 5 on review weeks.</dd>
+    <dt>Text</dt><dd><a href="https://github.com/fastai/fastbook">Deep Learning for Coders with fastai and PyTorch</a>, free notebook edition.</dd>
+    <dt>Notebooks</dt><dd>Kaggle or Colab, linked per week below.</dd>
+    <dt>Assessment</dt><dd>One notes file per week. Submitted or not submitted. On time or late.</dd>
+    <dt>Late policy</dt><dd>Late work is accepted and marked late. The record is the point.</dd>
+  </dl>
+</div>
 
 <footer>
   <p># Course material by Jeremy Howard and the fast.ai team, at course.fast.ai. This page is a personal study record, not affiliated with fast.ai.<br>
@@ -539,11 +549,9 @@ function weekBody(r) {
   bits.push(
     '<div class="sub-box" data-week="' + r.w + '">' +
       '<h5 style="font:600 11.5px var(--mono);color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin:0 0 9px">' + (r.has ? "Resubmit" : "Submit") + "</h5>" +
-      '<div class="drop" id="drop-' + r.w + '"><b>Drop your notes here</b> or <button class="btn sm" data-act="pick" data-w="' + r.w + '">choose a file</button> ' +
-        '<button class="btn sm" data-act="type" data-w="' + r.w + '">write here</button><br>' +
+      '<div class="drop" id="drop-' + r.w + '"><b>Drop your notes here</b> or <button class="btn sm" data-act="pick" data-w="' + r.w + '">choose a file</button><br>' +
         '<span style="font-size:12px">.md or .txt · saved to ' + fpath(r.w) + '</span></div>' +
       '<input type="file" accept=".md,.markdown,.txt,text/plain,text/markdown" id="file-' + r.w + '" hidden>' +
-      '<textarea class="editor" id="ed-' + r.w + '" hidden placeholder="# Week ' + r.w + '&#10;&#10;What I did, what I understood, what I did not."></textarea>' +
       '<div class="sub-actions">' +
         '<span class="sp"></span>' +
         '<button class="btn pri sm" data-act="submit" data-w="' + r.w + '" disabled>' + (r.has ? "Replace submission" : "Submit notes") + "</button>" +
@@ -553,6 +561,45 @@ function weekBody(r) {
   );
 
   return '<div class="wbody">' + bits.join("") + "</div>";
+}
+
+function renderHero(rows, live) {
+  const hero = $("hero");
+  if (!live) {
+    hero.innerHTML = '<p class="hero htag">Term</p><p class="hero hdate" style="font-size:clamp(22px,3.6vw,30px)">' +
+      fmtFull(dueAt(SCHEDULE[0].due)) + " to " + fmtFull(dueAt(SCHEDULE[SCHEDULE.length-1].due)) + "</p>";
+    return;
+  }
+  const overdue = rows.filter(r => r.status === "missing").sort((a, b) => a.w - b.w);
+  const due = rows.find(r => r.status === "open");
+
+  if (overdue.length) {
+    const r = overdue[0];
+    hero.innerHTML = '<p class="htag">Overdue</p>' +
+      '<p class="hdate overdue">' + fmtFull(r.dueDate) + "</p>" +
+      '<p class="htitle">Week ' + pad(r.w) + ", <b>" + esc(r.title) + "</b>" + (overdue.length > 1 ? " &middot; +" + (overdue.length - 1) + " more overdue" : "") + "</p>" +
+      '<a class="hgo" href="#" data-goto="' + r.w + '">Jump to this week &rarr;</a>';
+  } else if (due) {
+    const when = due.left < 0 ? Math.abs(due.left) + "d overdue" : due.left === 0 ? "due tonight" : due.left + "d left";
+    hero.innerHTML = '<p class="htag">Next due</p>' +
+      '<p class="hdate">' + fmtFull(due.dueDate) + "</p>" +
+      '<p class="htitle">Week ' + pad(due.w) + ", <b>" + esc(due.title) + "</b> &middot; " + when + "</p>" +
+      '<a class="hgo" href="#" data-goto="' + due.w + '">Jump to this week &rarr;</a>';
+  } else {
+    const last = rows[rows.length - 1];
+    hero.innerHTML = '<p class="htag">Section complete</p>' +
+      '<p class="hdate done">All 12 weeks submitted</p>' +
+      '<p class="htitle">Last one: week ' + pad(last.w) + ", due " + fmtFull(last.dueDate) + "</p>";
+  }
+
+  hero.querySelectorAll("[data-goto]").forEach(a => a.addEventListener("click", e => {
+    e.preventDefault();
+    const w = Number(a.dataset.goto);
+    EXPANDED.add(w);
+    render();
+    const el = document.querySelector('details.wk[data-week="' + w + '"]');
+    if (el) { el.open = true; el.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  }));
 }
 
 function boardCard(kind, label, r, extra) {
@@ -569,30 +616,18 @@ function renderBoard(rows, live) {
   const board = $("board");
   if (!live) { board.innerHTML = ""; return; }
 
-  const overdue = rows.filter(r => r.status === "missing").sort((a, b) => a.w - b.w);
+  const overdue = rows.filter(r => r.status === "missing");
   const due = rows.find(r => r.status === "open");
   const upcoming = rows.filter(r => r.status === "upcoming" || r.status === "soon").sort((a, b) => a.w - b.w)[0];
 
-  const cards = [];
-  if (overdue.length) {
-    const first = overdue[0];
-    const extra = overdue.length > 1 ? "+" + (overdue.length - 1) + " more overdue" : Math.abs(first.left) + "d overdue";
-    cards.push(boardCard("overdue", "Overdue", first, extra));
-  }
-  if (due) {
-    const extra = due.left < 0 ? Math.abs(due.left) + "d overdue" : due.left === 0 ? "due tonight" : due.left + "d left";
-    cards.push(boardCard("due", "Due now", due, extra));
-  }
+  // hero already covers overdue and due-now, so the board just previews what's next
   if (upcoming && upcoming.w !== (due && due.w)) {
     const extra = upcoming.left <= 7 ? "in " + upcoming.left + "d" : fmtDate(upcoming.dueDate);
-    cards.push(boardCard("next", "Up next", upcoming, extra));
-  }
-  if (!overdue.length && !due) {
-    const last = rows[rows.length - 1];
-    cards.push('<div class="bcard done"><h4>All caught up</h4><div class="btitle">Every week is submitted.</div><div class="bmeta">Last one: week ' + pad(last.w) + ", due " + fmtFull(last.dueDate) + "</div></div>");
+    board.innerHTML = boardCard("next", "Up next", upcoming, extra);
+  } else {
+    board.innerHTML = "";
   }
 
-  board.innerHTML = cards.join("");
   board.querySelectorAll("[data-goto]").forEach(a => a.addEventListener("click", e => {
     e.preventDefault();
     const w = Number(a.dataset.goto);
@@ -605,6 +640,7 @@ function renderBoard(rows, live) {
 
 function render() {
   const { rows, openWeek, state } = STATE;
+  renderHero(rows, state === "ok");
   renderBoard(rows, state === "ok");
 
   $("weeks").innerHTML = MODULES.map(mo => {
@@ -683,7 +719,7 @@ function stage(w, text, label) {
 }
 
 async function submitWeek(w) {
-  const text = pending.get(w) ?? ($("ed-" + w) ? $("ed-" + w).value : "");
+  const text = pending.get(w) || "";
   if (!text || !text.trim()) { setMsg(w, "Nothing staged to submit.", "bad"); return; }
   if (!canSubmit()) { setMsg(w, !token.get() ? "Connect a GitHub token first." : "This token does not belong to the repo owner. Cannot submit.", "bad"); return; }
 
@@ -767,11 +803,6 @@ function wireWeeks() {
         box.style.display = hidden ? "" : "none";
         btn.textContent = hidden ? "hide preview" : "show preview";
       }
-      if (act === "type") {
-        const ed = $("ed-" + w);
-        ed.hidden = !ed.hidden;
-        if (!ed.hidden) { ed.focus(); armSubmit(w, canSubmit() && !!ed.value.trim()); }
-      }
     });
   });
 
@@ -790,7 +821,7 @@ function wireWeeks() {
   });
 
   SCHEDULE.forEach(({ w }) => {
-    const input = $("file-" + w), drop = $("drop-" + w), ed = $("ed-" + w);
+    const input = $("file-" + w), drop = $("drop-" + w);
     if (!input || !drop) return;
 
     const take = file => {
@@ -811,14 +842,6 @@ function wireWeeks() {
       e.preventDefault(); drop.classList.remove("hot");
     }));
     drop.addEventListener("drop", e => take(e.dataTransfer.files[0]));
-
-    if (ed) ed.addEventListener("input", () => {
-      pending.set(w, ed.value);
-      armSubmit(w, canSubmit() && !!ed.value.trim());
-      if (!canSubmit() && ed.value.trim()) {
-        setMsg(w, !token.get() ? "Connect GitHub above to submit." : "This token is not the repo owner's. Cannot submit.", "bad");
-      }
-    });
   });
 }
 
