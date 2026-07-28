@@ -68,6 +68,24 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(32px,5.4vw,50px);l
 .setup .warn{font-size:12.5px;color:var(--body);margin:11px 0 0;line-height:1.5}
 
 /* progress */
+/* status board */
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:0 0 22px}
+.bcard{border:1px solid var(--rule);background:var(--panel);border-radius:7px;padding:14px 16px}
+.bcard h4{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;margin:0 0 8px;color:var(--muted)}
+.bcard .btitle{font-family:var(--display);font-weight:600;font-size:17px;letter-spacing:-.01em;line-height:1.25;margin:0 0 3px}
+.bcard .bmeta{font:400 12.5px var(--mono);color:var(--muted)}
+.bcard .bgo{display:inline-block;margin-top:9px;font:500 12.5px var(--mono);color:var(--blue);text-decoration:none;border-bottom:1px solid var(--blue-line)}
+.bcard.due{border-color:var(--blue-line);background:var(--blue-soft)}
+.bcard.due h4{color:var(--blue)}
+.bcard.overdue{border-color:#e6b0ab;background:var(--red-soft)}
+.bcard.overdue h4{color:var(--red)}
+.bcard.next h4{color:var(--muted)}
+.bcard.done{border-color:#bfe0cc;background:var(--green-soft)}
+.bcard.done h4{color:var(--green)}
+.bcard .bnum{font:600 11.5px var(--mono);padding:1px 7px;border-radius:3px;background:var(--cell);color:var(--muted)}
+.bcard.overdue .bnum{background:#f6d9d5;color:var(--red)}
+.bcard.due .bnum{background:var(--blue-soft);color:var(--blue);border:1px solid var(--blue-line)}
+
 .prog{margin:0 0 30px}
 .track{height:8px;background:var(--cell);border:1px solid var(--rule);border-radius:5px;overflow:hidden}
 .track i{display:block;height:100%;width:0;background:var(--blue);transition:width .8s ease}
@@ -201,6 +219,8 @@ footer a:hover{color:var(--blue)}
   <p class="msg" id="tok-msg"></p>
   <p class="warn">The token stays in this browser's local storage on your machine and is sent only to api.github.com. Scoped to one repo with contents access, the worst case if it leaks is someone writing to your notes repo. Anyone can read your notes either way, the repo is public. Without a token you can still read this page, you just cannot submit from it.</p>
 </div>
+
+<section class="board" id="board"></section>
 
 <section class="prog">
   <div class="track"><i id="fill"></i></div>
@@ -505,29 +525,87 @@ function weekBody(r) {
 
   bits.push('<div class="wsec"><h5>Assignment</h5><p>' + esc(r.do) + "</p></div>");
 
+  if (r.has) {
+    bits.push(
+      '<div class="wsec"><h5>Submitted</h5>' +
+        '<p class="bmeta" style="margin:0 0 8px">' + (r.at ? "committed " + fmtDate(r.at) : "submitted") + " &middot; " +
+        '<a href="' + fileUrl(r.w) + '" target="_blank" rel="noopener">open on GitHub</a> &middot; ' +
+        '<button class="btn sm" data-act="toggle-view" data-w="' + r.w + '" style="padding:1px 8px">hide preview</button></p>' +
+        '<div class="viewer" id="view-' + r.w + '"><p class="msg busy">Loading…</p></div>' +
+      "</div>"
+    );
+  }
+
   bits.push(
     '<div class="sub-box" data-week="' + r.w + '">' +
+      '<h5 style="font:600 11.5px var(--mono);color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin:0 0 9px">' + (r.has ? "Resubmit" : "Submit") + "</h5>" +
       '<div class="drop" id="drop-' + r.w + '"><b>Drop your notes here</b> or <button class="btn sm" data-act="pick" data-w="' + r.w + '">choose a file</button> ' +
         '<button class="btn sm" data-act="type" data-w="' + r.w + '">write here</button><br>' +
         '<span style="font-size:12px">.md or .txt · saved to ' + fpath(r.w) + '</span></div>' +
       '<input type="file" accept=".md,.markdown,.txt,text/plain,text/markdown" id="file-' + r.w + '" hidden>' +
       '<textarea class="editor" id="ed-' + r.w + '" hidden placeholder="# Week ' + r.w + '&#10;&#10;What I did, what I understood, what I did not."></textarea>' +
       '<div class="sub-actions">' +
-        (r.has ? '<button class="btn sm" data-act="view" data-w="' + r.w + '">View submitted notes</button>' +
-                 '<a class="btn sm" href="' + fileUrl(r.w) + '" target="_blank" rel="noopener" style="text-decoration:none">Open on GitHub</a>' : "") +
         '<span class="sp"></span>' +
         '<button class="btn pri sm" data-act="submit" data-w="' + r.w + '" disabled>' + (r.has ? "Replace submission" : "Submit notes") + "</button>" +
       "</div>" +
       '<p class="msg" id="msg-' + r.w + '"></p>' +
-      '<div class="viewer" id="view-' + r.w + '" hidden></div>' +
     "</div>"
   );
 
   return '<div class="wbody">' + bits.join("") + "</div>";
 }
 
+function boardCard(kind, label, r, extra) {
+  const kicker = r.review ? "Review week" : r.final ? "Final" : "Lesson " + pad(r.w);
+  return '<div class="bcard ' + kind + '">' +
+    '<h4>' + label + "</h4>" +
+    '<div class="btitle">' + esc(r.title) + "</div>" +
+    '<div class="bmeta"><span class="bnum">WK ' + pad(r.w) + "</span> &nbsp;" + kicker + " &middot; due " + fmtFull(r.dueDate) + (extra ? " &middot; " + extra : "") + "</div>" +
+    '<a class="bgo" href="#" data-goto="' + r.w + '">Jump to this week &rarr;</a>' +
+    "</div>";
+}
+
+function renderBoard(rows, live) {
+  const board = $("board");
+  if (!live) { board.innerHTML = ""; return; }
+
+  const overdue = rows.filter(r => r.status === "missing").sort((a, b) => a.w - b.w);
+  const due = rows.find(r => r.status === "open");
+  const upcoming = rows.filter(r => r.status === "upcoming" || r.status === "soon").sort((a, b) => a.w - b.w)[0];
+
+  const cards = [];
+  if (overdue.length) {
+    const first = overdue[0];
+    const extra = overdue.length > 1 ? "+" + (overdue.length - 1) + " more overdue" : Math.abs(first.left) + "d overdue";
+    cards.push(boardCard("overdue", "Overdue", first, extra));
+  }
+  if (due) {
+    const extra = due.left < 0 ? Math.abs(due.left) + "d overdue" : due.left === 0 ? "due tonight" : due.left + "d left";
+    cards.push(boardCard("due", "Due now", due, extra));
+  }
+  if (upcoming && upcoming.w !== (due && due.w)) {
+    const extra = upcoming.left <= 7 ? "in " + upcoming.left + "d" : fmtDate(upcoming.dueDate);
+    cards.push(boardCard("next", "Up next", upcoming, extra));
+  }
+  if (!overdue.length && !due) {
+    const last = rows[rows.length - 1];
+    cards.push('<div class="bcard done"><h4>All caught up</h4><div class="btitle">Every week is submitted.</div><div class="bmeta">Last one: week ' + pad(last.w) + ", due " + fmtFull(last.dueDate) + "</div></div>");
+  }
+
+  board.innerHTML = cards.join("");
+  board.querySelectorAll("[data-goto]").forEach(a => a.addEventListener("click", e => {
+    e.preventDefault();
+    const w = Number(a.dataset.goto);
+    EXPANDED.add(w);
+    render();
+    const el = document.querySelector('details.wk[data-week="' + w + '"]');
+    if (el) { el.open = true; el.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  }));
+}
+
 function render() {
   const { rows, openWeek, state } = STATE;
+  renderBoard(rows, state === "ok");
 
   $("weeks").innerHTML = MODULES.map(mo => {
     const items = rows.filter(r => r.mod === mo.id).map(r => {
@@ -640,6 +718,7 @@ async function submitWeek(w) {
     const due = dueAt(SCHEDULE.find(s => s.w === w).due);
     EXPANDED.add(w);
     FLASH = { w, kind: "good", text: Date.now() <= due ? "Submitted on time." : "Submitted late. It still counts." };
+    loadedNotes.delete(w);
     await refresh(true);
   } catch (e) {
     setMsg(w, "Failed: " + e.message, "bad");
@@ -647,11 +726,13 @@ async function submitWeek(w) {
   }
 }
 
-async function viewNotes(w) {
+const loadedNotes = new Set(); // weeks whose preview has already been fetched this session
+
+async function viewNotes(w, force) {
   const box = $("view-" + w);
   if (!box) return;
-  if (!box.hidden) { box.hidden = true; return; }
-  box.hidden = false;
+  if (loadedNotes.has(w) && !force) return;
+  loadedNotes.add(w);
   box.innerHTML = '<p class="msg busy">Loading…</p>';
   try {
     const r = await gh("/contents/" + fpath(w) + "?ref=" + CONFIG.branch);
@@ -665,6 +746,7 @@ async function viewNotes(w) {
       box.innerHTML = ""; box.appendChild(pre);
     }
   } catch (e) {
+    loadedNotes.delete(w);
     box.innerHTML = '<p class="msg bad">Could not load the file: ' + esc(e.message) + "</p>";
   }
 }
@@ -678,10 +760,31 @@ function wireWeeks() {
       if (act === "pick")   $("file-" + w).click();
       if (act === "submit") submitWeek(w);
       if (act === "view")   viewNotes(w);
+      if (act === "toggle-view") {
+        const box = $("view-" + w);
+        const btn = ev.currentTarget;
+        const hidden = box.style.display === "none";
+        box.style.display = hidden ? "" : "none";
+        btn.textContent = hidden ? "hide preview" : "show preview";
+      }
       if (act === "type") {
         const ed = $("ed-" + w);
         ed.hidden = !ed.hidden;
         if (!ed.hidden) { ed.focus(); armSubmit(w, canSubmit() && !!ed.value.trim()); }
+      }
+    });
+  });
+
+  // auto-load the preview for any submitted week that's expanded on screen
+  document.querySelectorAll("details.wk[open]").forEach(el => {
+    const w = Number(el.dataset.week);
+    if ($("view-" + w)) viewNotes(w);
+  });
+  document.querySelectorAll("details.wk").forEach(el => {
+    el.addEventListener("toggle", () => {
+      if (el.open) {
+        const w = Number(el.dataset.week);
+        if ($("view-" + w)) viewNotes(w);
       }
     });
   });
