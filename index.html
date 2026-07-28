@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>twenty epochs · fastai curriculum · navmisa</title>
+<title>twenty epochs · fastai curriculum · pistachionet</title>
 <meta name="description" content="The fastai book as a public training run. Twenty chapters, twenty due dates, notes committed to the repo.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2216%22 fill=%22%231f77b4%22/><rect x=%2214%22 y=%2252%22 width=%2214%22 height=%2234%22 fill=%22white%22/><rect x=%2236%22 y=%2238%22 width=%2214%22 height=%2248%22 fill=%22white%22/><rect x=%2258%22 y=%2224%22 width=%2214%22 height=%2262%22 fill=%22white%22/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -94,7 +94,7 @@ footer a:hover{color:var(--blue)}
 <div class="wrap">
 
 <header>
-  <p class="eyebrow"><a id="repolink" href="#">navmisa/fastai-curriculum ↗</a></p>
+  <p class="eyebrow"><a id="repolink" href="#">loading ↗</a></p>
   <h1>Twenty epochs, no early stopping.</h1>
   <p class="dek">The fastai book as a public training run. Each chapter is one epoch with a due date and a deliverable: read it, build the thing, answer the questionnaire, commit <code>notes/chapter-NN.md</code> to this repo. The page reads the repo over the GitHub API and updates the log itself. No database, nowhere to hide.</p>
 </header>
@@ -111,7 +111,7 @@ footer a:hover{color:var(--blue)}
   <p># the repo is the database. committing a notes file flips its status here.<br>
   # schedule lives in the CURRICULUM array inside this file. reschedule by editing dates.<br>
   # source text: Deep Learning for Coders with fastai and PyTorch, Howard &amp; Gugger.<br>
-  # record: <a id="repolink2" href="#">github.com/navmisa/fastai-curriculum</a></p>
+  # record: <a id="repolink2" href="#">the repo</a></p>
 </footer>
 
 </div>
@@ -180,11 +180,18 @@ const DAY = 86400000;
 const fmtDue = d => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 
 async function fetchNotes() {
-  const url = "https://api.github.com/repos/" + CONFIG.owner + "/" + CONFIG.repo + "/contents/notes?ref=" + CONFIG.branch;
+  const base = "https://api.github.com/repos/" + CONFIG.owner + "/" + CONFIG.repo;
+  const url = base + "/contents/notes?ref=" + CONFIG.branch;
   try {
     const r = await fetch(url, { headers: { Accept: "application/vnd.github+json" } });
-    if (r.status === 404) return { state: "missing", files: new Set() };
     if (r.status === 403 || r.status === 429) return { state: "limited", files: new Set() };
+    if (r.status === 404) {
+      // could be a missing repo or just an empty notes folder. ask which.
+      const probe = await fetch(base, { headers: { Accept: "application/vnd.github+json" } });
+      if (probe.status === 404) return { state: "missing", files: new Set() };
+      if (probe.ok) return { state: "ok", files: new Set() };
+      return { state: "error", files: new Set() };
+    }
     if (!r.ok) return { state: "error", files: new Set() };
     const list = await r.json();
     const files = new Set((Array.isArray(list) ? list : []).map(f => f.name).filter(x => /^chapter-\d{2}\.md$/.test(x)));
@@ -275,8 +282,10 @@ function render(rows, currentN, state) {
 
 (async function main() {
   console.assert(CURRICULUM.length === 20, "expected 20 chapters");
-  document.getElementById("repolink").href = repoUrl;
-  document.getElementById("repolink2").href = repoUrl;
+  const slug = CONFIG.owner + "/" + CONFIG.repo;
+  const a1 = document.getElementById("repolink"), a2 = document.getElementById("repolink2");
+  a1.href = repoUrl; a1.textContent = slug + " ↗";
+  a2.href = repoUrl; a2.textContent = "github.com/" + slug;
   const { state, files } = await fetchNotes();
   const { rows, currentN } = classify(files, state === "ok");
   render(rows, currentN, state);
