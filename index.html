@@ -185,7 +185,8 @@ footer a:hover{color:var(--blue)}
 </div>
 
 <div class="setup" id="setup" hidden>
-  <h4>Connect a token so this page can commit for you</h4>
+  <h4>Connect your token, owner only</h4>
+  <p style="font-size:13px;color:var(--body);margin:0 0 11px">This is a single-user course log for <code id="owner-name">the repo owner</code>. A token only works here if it belongs to an account that already has write access to this repo, which is just you unless you have added someone as a collaborator on GitHub. Anyone else's token will connect but every submit will fail.</p>
   <ol>
     <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a></li>
     <li>Repository access: <b>Only select repositories</b>, then pick this one repo.</li>
@@ -385,6 +386,12 @@ async function gh(path, opts = {}) {
   if (t) headers.Authorization = "Bearer " + t;
   return fetch(API + path, Object.assign({}, opts, { headers }));
 }
+gh.raw = async function (path, opts = {}) {
+  const headers = Object.assign({ Accept: "application/vnd.github+json" }, opts.headers || {});
+  const t = token.get();
+  if (t) headers.Authorization = "Bearer " + t;
+  return fetch("https://api.github.com" + path, Object.assign({}, opts, { headers }));
+};
 
 /* ---------- read state from the repo ---------- */
 async function loadState() {
@@ -574,6 +581,7 @@ function render() {
 }
 
 /* ---------- submission ---------- */
+let VERIFIED_OWNER = null; // true once we confirm the connected token belongs to CONFIG.owner
 const pending = new Map(); // week -> text waiting to be submitted
 
 function setMsg(w, text, kind) {
@@ -584,20 +592,22 @@ function armSubmit(w, on) {
   const b = document.querySelector('[data-act="submit"][data-w="' + w + '"]');
   if (b) b.disabled = !on;
 }
+function canSubmit() { return !!token.get() && VERIFIED_OWNER === true; }
 
 function stage(w, text, label) {
   if (!text.trim()) { setMsg(w, "That file is empty. Nothing to submit.", "bad"); return; }
   pending.set(w, text);
   const words = text.trim().split(/\s+/).length;
   setMsg(w, label + " ready · " + words + " words. Press submit to commit it.", "busy");
-  armSubmit(w, !!token.get());
+  armSubmit(w, canSubmit());
   if (!token.get()) setMsg(w, label + " ready, but no token connected. Connect GitHub above to submit.", "bad");
+  else if (VERIFIED_OWNER === false) setMsg(w, label + " ready, but this token is not the repo owner's. Cannot submit.", "bad");
 }
 
 async function submitWeek(w) {
   const text = pending.get(w) ?? ($("ed-" + w) ? $("ed-" + w).value : "");
   if (!text || !text.trim()) { setMsg(w, "Nothing staged to submit.", "bad"); return; }
-  if (!token.get()) { setMsg(w, "Connect a GitHub token first.", "bad"); return; }
+  if (!canSubmit()) { setMsg(w, !token.get() ? "Connect a GitHub token first." : "This token does not belong to the repo owner. Cannot submit.", "bad"); return; }
 
   armSubmit(w, false);
   setMsg(w, "Committing…", "busy");
@@ -671,7 +681,7 @@ function wireWeeks() {
       if (act === "type") {
         const ed = $("ed-" + w);
         ed.hidden = !ed.hidden;
-        if (!ed.hidden) { ed.focus(); armSubmit(w, !!token.get() && !!ed.value.trim()); }
+        if (!ed.hidden) { ed.focus(); armSubmit(w, canSubmit() && !!ed.value.trim()); }
       }
     });
   });
@@ -701,17 +711,34 @@ function wireWeeks() {
 
     if (ed) ed.addEventListener("input", () => {
       pending.set(w, ed.value);
-      armSubmit(w, !!token.get() && !!ed.value.trim());
-      if (!token.get() && ed.value.trim()) setMsg(w, "Connect GitHub above to submit.", "bad");
+      armSubmit(w, canSubmit() && !!ed.value.trim());
+      if (!canSubmit() && ed.value.trim()) {
+        setMsg(w, !token.get() ? "Connect GitHub above to submit." : "This token is not the repo owner's. Cannot submit.", "bad");
+      }
     });
   });
 }
 
+async function checkOwner() {
+  if (!token.get()) { VERIFIED_OWNER = null; return null; }
+  try {
+    const r = await gh.raw("/user");
+    if (!r.ok) { VERIFIED_OWNER = false; return false; }
+    const who = (await r.json()).login;
+    VERIFIED_OWNER = (String(who).toLowerCase() === CONFIG.owner.toLowerCase());
+    return VERIFIED_OWNER ? who : false;
+  } catch (e) { VERIFIED_OWNER = null; return null; }
+}
+
 function paintConn() {
-  const on = !!token.get();
+  const has = !!token.get();
+  const on = has && VERIFIED_OWNER === true;
   $("conn").classList.toggle("on", on);
-  $("conn-text").textContent = on ? "GitHub connected · you can submit" : "not connected · read only";
-  $("conn-btn").textContent = on ? "Manage token" : "Connect GitHub";
+  if (!has) $("conn-text").textContent = "not connected · read only";
+  else if (VERIFIED_OWNER === true) $("conn-text").textContent = "connected as " + CONFIG.owner + " · you can submit";
+  else if (VERIFIED_OWNER === false) $("conn-text").textContent = "connected, but not the repo owner · read only";
+  else $("conn-text").textContent = "connected · verifying…";
+  $("conn-btn").textContent = has ? "Manage token" : "Connect GitHub";
 }
 
 function wireConn() {
@@ -725,12 +752,20 @@ function wireConn() {
     token.set(v); $("tok").value = "";
     $("tok-msg").className = "msg busy"; $("tok-msg").textContent = "Checking…";
     paintConn();
+    const who = await checkOwner();
+    paintConn();
+    if (who === false) {
+      $("tok-msg").className = "msg bad";
+      $("tok-msg").textContent = "That token works, but it belongs to a different GitHub account. Only " + CONFIG.owner + " can submit here.";
+      await refresh(true);
+      return;
+    }
     const ok = await refresh(true);
     $("tok-msg").className = "msg " + (ok ? "good" : "bad");
-    $("tok-msg").textContent = ok ? "Connected. You can submit now." : "Token did not work. Check its permissions and expiry.";
+    $("tok-msg").textContent = ok ? "Connected as " + who + ". You can submit now." : "Token did not work. Check its permissions and expiry.";
   });
   $("tok-clear").addEventListener("click", () => {
-    token.clear(); paintConn();
+    token.clear(); VERIFIED_OWNER = null; paintConn();
     $("tok-msg").className = "msg"; $("tok-msg").textContent = "Token removed from this browser.";
     refresh(true);
   });
@@ -753,9 +788,11 @@ async function refresh(clearNotice) {
   for (const id of ["repotop", "repobot"]) {
     const a = $(id); a.href = REPO; a.textContent = id === "repotop" ? slug : "github.com/" + slug;
   }
+  $("owner-name").textContent = CONFIG.owner;
   if (window.marked) marked.setOptions({ breaks: true, gfm: true });
   wireConn();
   paintConn();
+  if (token.get()) { await checkOwner(); paintConn(); }
   await refresh();
 })();
 </script>
