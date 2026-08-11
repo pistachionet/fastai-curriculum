@@ -260,7 +260,7 @@ const MODULES = [
 ];
 
 const SCHEDULE = [
-  { w:1, mod:1, due:"2026-08-02", hrs:8,
+  { w:1, mod:1, due:"2026-08-16", hrs:3,
     title:"Lesson 1: Getting started",
     lesson:"https://course.fast.ai/Lessons/lesson1.html",
     video:"https://www.youtube.com/watch?v=8SF_h3xF3cE",
@@ -270,7 +270,7 @@ const SCHEDULE = [
          ["Jupyter Notebook 101","https://www.kaggle.com/code/jhoward/jupyter-notebook-101"]],
     do:"Finish the bird notebook, then train the same kind of classifier on a category you pick and search for yourself. Answer the chapter 1 questionnaire in your notes." },
 
-  { w:2, mod:1, due:"2026-08-09", hrs:8,
+  { w:2, mod:1, due:"2026-08-23", hrs:4,
     title:"Lesson 2: Deployment",
     lesson:"https://course.fast.ai/Lessons/lesson2.html",
     video:"https://www.youtube.com/watch?v=F4tvM4Vb3A0",
@@ -281,7 +281,7 @@ const SCHEDULE = [
          ["Hugging Face Spaces","https://huggingface.co/spaces"]],
     do:"Put week 1's model on the internet as a Gradio app on Hugging Face Spaces. Paste the live URL at the top of your notes." },
 
-  { w:3, mod:1, due:"2026-08-16", hrs:9,
+  { w:3, mod:1, due:"2026-09-06", hrs:4,
     title:"Lesson 3: Neural net foundations",
     lesson:"https://course.fast.ai/Lessons/lesson3.html",
     video:"https://www.youtube.com/watch?v=hBBOjCiFcuo",
@@ -291,11 +291,11 @@ const SCHEDULE = [
          ["Which image models are best?","https://www.kaggle.com/code/jhoward/which-image-models-are-best/"]],
     do:"This is the first hard week. Write out what gradient descent does step by step, in your own words, without looking. If you cannot, that is the signal to rewatch before moving on." },
 
-  { w:4, mod:1, due:"2026-08-23", hrs:5, review:true,
+  { w:4, mod:1, due:"2026-09-27", hrs:4, review:true,
     title:"Review week: consolidate lessons 1 to 3",
     do:"No new lesson. Rebuild one notebook from lessons 1 to 3 in an empty file, from memory, looking things up only when stuck. Then answer the questionnaires for chapters 1, 2, and 4. Your notes this week are the answers plus a short list of what you could not do without help." },
 
-  { w:5, mod:2, due:"2026-08-30", hrs:8,
+  { w:5, mod:2, due:"2026-10-11", hrs:4,
     title:"Lesson 4: Natural Language (NLP)",
     lesson:"https://course.fast.ai/Lessons/lesson4.html",
     video:"https://www.youtube.com/watch?v=toUgBQv1BT8",
@@ -305,7 +305,7 @@ const SCHEDULE = [
          ["US Patent Phrase to Phrase Matching","https://www.kaggle.com/competitions/us-patent-phrase-to-phrase-matching"]],
     do:"Run the patent phrase matching notebook end to end. In your notes, explain what a token and an embedding are without using either word in the definition." },
 
-  { w:6, mod:2, due:"2026-09-06", hrs:9,
+  { w:6, mod:2, due:"2026-10-25", hrs:4,
     title:"Lesson 5: From-scratch model",
     lesson:"https://course.fast.ai/Lessons/lesson5.html",
     video:"https://www.youtube.com/watch?v=_rXzeWq4C6w",
@@ -315,7 +315,7 @@ const SCHEDULE = [
          ["Why you should use a framework","https://www.kaggle.com/code/jhoward/why-you-should-use-a-framework"]],
     do:"Build the Titanic model up from a linear model to a net with a hidden layer, writing the training loop yourself. Record your accuracy at each stage in a small table." },
 
-  { w:7, mod:2, due:"2026-09-13", hrs:8,
+  { w:7, mod:2, due:"2026-11-15", hrs:4,
     title:"Lesson 6: Random forests",
     lesson:"https://course.fast.ai/Lessons/lesson6.html",
     video:"https://www.youtube.com/watch?v=AdhG64NF76E",
@@ -325,11 +325,11 @@ const SCHEDULE = [
          ["Road to the top, part 1","https://www.kaggle.com/code/jhoward/first-steps-road-to-the-top-part-1"]],
     do:"Build a random forest from scratch, then use feature importance to say something about the data you did not know before. That observation is the deliverable." },
 
-  { w:8, mod:2, due:"2026-09-20", hrs:5, review:true,
+  { w:8, mod:2, due:"2026-11-29", hrs:5, review:true,
     title:"Review week: consolidate lessons 4 to 6",
     do:"No new lesson. Pick the model from lessons 4 to 6 you understand least and rebuild it. Then write a one page explanation of it aimed at someone who has not taken this course. Explaining it is the test." },
 
-  { w:9, mod:3, due:"2026-09-27", hrs:8,
+  { w:9, mod:3, due:"2026-12-06", hrs:4,
     title:"Lesson 7: Collaborative filtering",
     lesson:"https://course.fast.ai/Lessons/lesson7.html",
     video:"https://www.youtube.com/watch?v=p4ZZq0736Po",
@@ -340,7 +340,7 @@ const SCHEDULE = [
          ["Road to the top, part 4","https://www.kaggle.com/code/jhoward/multi-target-road-to-the-top-part-4"]],
     do:"Build the recommender both ways, dot product and neural net. Then look at the learned bias terms and find the item the model thinks people dislike even when they should like it." },
 
-  { w:10, mod:3, due:"2026-10-04", hrs:8,
+  { w:10, mod:3, due:"2026-12-20", hrs:3,
     title:"Lesson 8: Convolutions (CNNs)",
     lesson:"https://course.fast.ai/Lessons/lesson8.html",
     video:"https://www.youtube.com/watch?v=htiNBPxcXgo",
@@ -350,7 +350,7 @@ const SCHEDULE = [
          ["Collaborative filtering and embeddings spreadsheet","https://github.com/fastai/course22/blob/master/xl/collab_filter.xlsx"]],
     do:"Work the convolution spreadsheet by hand before touching code. Then explain in your notes what dropout does and why it helps, in three sentences." },
 
-  { w:11, mod:3, due:"2026-10-11", hrs:6,
+  { w:11, mod:3, due:"2027-01-10", hrs:3,
     title:"Bonus lesson: Data ethics",
     lesson:"https://course.fast.ai/Lessons/lesson8a.html",
     video:"https://www.youtube.com/watch?v=krIVOb23EH8",
@@ -359,7 +359,7 @@ const SCHEDULE = [
     nbs:[],
     do:"Pick one case study from the chapter and write a page on it. Then take one model you built in this course and write honestly about how it could go wrong in someone else's hands." },
 
-  { w:12, mod:3, due:"2026-10-18", hrs:10, final:true,
+  { w:12, mod:3, due:"2027-01-24", hrs:5, final:true,
     title:"Final project and course retrospective",
     do:"Build and ship one thing of your own using what this course taught, end to end, deployed somewhere public. Then write the retrospective: what you built, what actually stuck, what you still cannot do, and what you are doing next. Publish it on your blog." }
 ];
