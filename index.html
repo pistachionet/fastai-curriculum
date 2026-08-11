@@ -21,9 +21,18 @@
   --sans:'IBM Plex Sans',system-ui,sans-serif;
   --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
 }
+:root[data-theme="dark"]{
+  --bg:#15171a; --panel:#1c1f23; --cell:#22262b; --rule:#2c3036; --rule2:#3a3f46;
+  --ink:#eceef0; --body:#c3c9cf; --muted:#8b929a; --faint:#666d75;
+  --blue:#6fa8e0; --blue-soft:#1c2a3a; --blue-line:#345070;
+  --green:#5fb37e; --green-soft:#17251c;
+  --red:#e0776c; --red-soft:#2c1b1a;
+  --amber:#dbab5c; --amber-soft:#2a2318;
+}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55}
+html{color-scheme:light dark}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55;transition:background .15s ease,color .15s ease}
 a{color:var(--blue)}
 a:focus-visible,button:focus-visible,summary:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 button{font:inherit;cursor:pointer}
@@ -72,9 +81,9 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(32px,5.4vw,50px);l
 .setup h4{font:600 13px var(--mono);margin:0 0 9px;color:var(--ink)}
 .setup ol{margin:0 0 12px;padding-left:20px;font-size:13.5px;color:var(--body)}
 .setup li{margin-bottom:5px}
-.setup code{font:500 12.5px var(--mono);background:#fff;border:1px solid var(--blue-line);padding:1px 5px;border-radius:3px}
+.setup code{font:500 12.5px var(--mono);background:var(--panel);border:1px solid var(--blue-line);padding:1px 5px;border-radius:3px}
 .setup .row{display:flex;gap:8px;flex-wrap:wrap}
-.setup input{flex:1;min-width:220px;font:400 13px var(--mono);padding:8px 10px;border:1px solid var(--rule2);border-radius:5px;background:#fff;color:var(--ink)}
+.setup input{flex:1;min-width:220px;font:400 13px var(--mono);padding:8px 10px;border:1px solid var(--rule2);border-radius:5px;background:var(--panel);color:var(--ink)}
 .setup .warn{font-size:12.5px;color:var(--body);margin:11px 0 0;line-height:1.5}
 
 /* progress */
@@ -184,10 +193,23 @@ footer a:hover{color:var(--blue)}
 </style>
 </head>
 <body>
+<script>
+(function () {
+  try {
+    var saved = localStorage.getItem("fastai-course-theme");
+    document.documentElement.setAttribute("data-theme", saved === "light" ? "light" : "dark");
+  } catch (e) {
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+})();
+</script>
 <div class="wrap">
 
 <header>
-  <p class="kicker">Self-paced section · <a id="repotop" href="#">repo</a></p>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+    <p class="kicker">Self-paced section · <a id="repotop" href="#">repo</a></p>
+    <button class="btn sm" id="theme-btn" aria-label="Toggle dark mode" style="flex-shrink:0">&#9789;</button>
+  </div>
   <h1>Practical Deep Learning for Coders</h1>
   <p class="sub">A self-run section of <a href="https://course.fast.ai/">course.fast.ai</a> taught by Jeremy Howard. Twelve weeks. Each week: watch the lecture, work the notebooks, read the chapter, then submit notes. Notes are due Sunday night and are stored in this site's own GitHub repo.</p>
 </header>
@@ -908,6 +930,29 @@ async function refresh(clearNotice) {
   return live;
 }
 
+/* ---------- theme ---------- */
+const THEME_KEY = "fastai-course-theme";
+
+function currentTheme() {
+  return document.documentElement.getAttribute("data-theme") || "dark";
+}
+function paintTheme() {
+  const t = currentTheme();
+  const btn = $("theme-btn");
+  if (btn) { btn.innerHTML = t === "dark" ? "&#9788;" : "&#9789;"; btn.title = t === "dark" ? "Switch to light mode" : "Switch to dark mode"; }
+}
+function wireTheme() {
+  const btn = $("theme-btn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const next = currentTheme() === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+    paintTheme();
+  });
+  paintTheme();
+}
+
 (async function main() {
   console.assert(SCHEDULE.length === 12, "expected 12 weeks");
   const slug = CONFIG.owner + "/" + CONFIG.repo;
@@ -916,6 +961,7 @@ async function refresh(clearNotice) {
   }
   $("owner-name").textContent = CONFIG.owner;
   if (window.marked) marked.setOptions({ breaks: true, gfm: true });
+  wireTheme();
   wireConn();
   paintConn();
   if (token.get()) { await checkOwner(); paintConn(); }
