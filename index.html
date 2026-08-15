@@ -176,6 +176,9 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(32px,5.4vw,50px);l
 .viewer th,.viewer td{border:1px solid var(--rule);padding:6px 9px;text-align:left}
 .viewer blockquote{border-left:3px solid var(--blue-line);margin:12px 0;padding:2px 0 2px 13px;color:var(--muted)}
 
+.pdf-view{display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:8px}
+.pdf-page{max-width:100%;border:1px solid var(--rule);border-radius:5px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
 footer{margin-top:44px;border-top:2px solid var(--ink);padding-top:15px;font:400 12.5px/1.9 var(--mono);color:var(--muted)}
 footer a{color:var(--muted)}
 footer a:hover{color:var(--blue)}
@@ -272,6 +275,7 @@ footer a:hover{color:var(--blue)}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.js"></script>
 <script>
 const CONFIG = { owner: "pistachionet", repo: "fastai-curriculum", branch: "main", dir: "notes" };
 
@@ -393,7 +397,8 @@ const TKEY  = "fastai-course-token";
 const DAY   = 86400000;
 
 const pad    = n => String(n).padStart(2, "0");
-const fname  = w => "week-" + pad(w) + ".md";
+const EXT_OF = new Map(); // week -> "md" | "pdf", learned from what's actually in the repo or just staged
+const fname  = w => "week-" + pad(w) + "." + (EXT_OF.get(w) || "md");
 const fpath  = w => CONFIG.dir + "/" + fname(w);
 const fileUrl= w => REPO + "/blob/" + CONFIG.branch + "/" + fpath(w);
 const $      = id => document.getElementById(id);
@@ -413,6 +418,16 @@ function b64encode(str) {
 function b64decode(b64) {
   const bin = atob(String(b64).replace(/\s/g, ""));
   return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+// raw-bytes variants, for binary files like PDFs (do not run through TextEncoder/Decoder, which assume UTF-8)
+function bytesToB64(bytes) {
+  let bin = ""; const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  return btoa(bin);
+}
+function b64decodeBytes(b64) {
+  const bin = atob(String(b64).replace(/\s/g, ""));
+  return Uint8Array.from(bin, c => c.charCodeAt(0));
 }
 
 /* ---------- token, stored in this browser only ---------- */
@@ -463,8 +478,12 @@ async function loadState() {
 
     const list = await r.json();
     for (const f of (Array.isArray(list) ? list : [])) {
-      const m = /^week-(\d{2})\.md$/.exec(f.name);
-      if (m) out.files.set(Number(m[1]), { sha: f.sha, size: f.size });
+      const m = /^week-(\d{2})\.(md|pdf)$/.exec(f.name);
+      if (m) {
+        const wk = Number(m[1]);
+        out.files.set(wk, { sha: f.sha, size: f.size, ext: m[2] });
+        EXT_OF.set(wk, m[2]);
+      }
     }
 
     // one call gives submission times for everything, via our own commit messages
@@ -572,8 +591,8 @@ function weekBody(r) {
     '<div class="sub-box" data-week="' + r.w + '">' +
       '<h5 style="font:600 11.5px var(--mono);color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin:0 0 9px">' + (r.has ? "Resubmit" : "Submit") + "</h5>" +
       '<div class="drop" id="drop-' + r.w + '"><b>Drop your notes here</b> or <button class="btn sm" data-act="pick" data-w="' + r.w + '">choose a file</button><br>' +
-        '<span style="font-size:12px">.md or .txt · saved to ' + fpath(r.w) + '</span></div>' +
-      '<input type="file" accept=".md,.markdown,.txt,text/plain,text/markdown" id="file-' + r.w + '" hidden>' +
+        '<span style="font-size:12px">.md, .txt, or .pdf · saved to ' + fpath(r.w) + '</span></div>' +
+      '<input type="file" accept=".md,.markdown,.txt,.pdf,text/plain,text/markdown,application/pdf" id="file-' + r.w + '" hidden>' +
       '<div class="sub-actions">' +
         '<span class="sp"></span>' +
         '<button class="btn pri sm" data-act="submit" data-w="' + r.w + '" disabled>' + (r.has ? "Replace submission" : "Submit notes") + "</button>" +
@@ -730,23 +749,32 @@ function armSubmit(w, on) {
 }
 function canSubmit() { return !!token.get() && VERIFIED_OWNER === true; }
 
-function stage(w, text, label) {
-  if (!text.trim()) { setMsg(w, "That file is empty. Nothing to submit.", "bad"); return; }
-  pending.set(w, text);
-  const words = text.trim().split(/\s+/).length;
-  setMsg(w, label + " ready · " + words + " words. Press submit to commit it.", "busy");
+function stage(w, payload, label) {
+  // payload: { kind: "text", text } or { kind: "pdf", bytes: Uint8Array }
+  if (payload.kind === "text" && !payload.text.trim()) { setMsg(w, "That file is empty. Nothing to submit.", "bad"); return; }
+  if (payload.kind === "pdf" && !payload.bytes.length) { setMsg(w, "That file is empty. Nothing to submit.", "bad"); return; }
+  pending.set(w, payload);
+  EXT_OF.set(w, payload.kind === "pdf" ? "pdf" : "md");
+  const detail = payload.kind === "pdf" ? Math.round(payload.bytes.length / 1024) + " KB" : payload.text.trim().split(/\s+/).length + " words";
+  setMsg(w, label + " ready · " + detail + ". Press submit to commit it.", "busy");
   armSubmit(w, canSubmit());
   if (!token.get()) setMsg(w, label + " ready, but no token connected. Connect GitHub above to submit.", "bad");
   else if (VERIFIED_OWNER === false) setMsg(w, label + " ready, but this token is not the repo owner's. Cannot submit.", "bad");
 }
 
 async function submitWeek(w) {
-  const text = pending.get(w) || "";
-  if (!text || !text.trim()) { setMsg(w, "Nothing staged to submit.", "bad"); return; }
+  const payload = pending.get(w);
+  const empty = !payload || (payload.kind === "text" ? !payload.text.trim() : !payload.bytes || !payload.bytes.length);
+  if (empty) { setMsg(w, "Nothing staged to submit.", "bad"); return; }
   if (!canSubmit()) { setMsg(w, !token.get() ? "Connect a GitHub token first." : "This token does not belong to the repo owner. Cannot submit.", "bad"); return; }
 
   armSubmit(w, false);
   setMsg(w, "Committing…", "busy");
+
+  const newExt = payload.kind === "pdf" ? "pdf" : "md";
+  const oldExt = EXT_OF.get(w); // extension currently live in the repo, before this submit
+  const staleExt = oldExt && oldExt !== newExt ? oldExt : null; // e.g. replacing a .md with a .pdf
+  EXT_OF.set(w, newExt); // fpath(w) below must reflect the new extension
 
   try {
     // always re-read the sha so replacing a file cannot clobber a newer version
@@ -756,8 +784,8 @@ async function submitWeek(w) {
     else if (cur.status !== 404) throw new Error("could not check existing file (" + cur.status + ")");
 
     const body = {
-      message: "submit " + fname(w).replace(/\.md$/, ""),
-      content: b64encode(text),
+      message: "submit week-" + pad(w),
+      content: payload.kind === "pdf" ? bytesToB64(payload.bytes) : b64encode(payload.text),
       branch: CONFIG.branch
     };
     if (sha) body.sha = sha;
@@ -772,6 +800,21 @@ async function submitWeek(w) {
       throw new Error("github said " + r.status + (detail ? ": " + detail : ""));
     }
 
+    // if the type changed (e.g. .md -> .pdf), remove the now-orphaned old file so the week has exactly one submission
+    if (staleExt) {
+      try {
+        const stalePath = CONFIG.dir + "/week-" + pad(w) + "." + staleExt;
+        const staleCur = await gh("/contents/" + stalePath + "?ref=" + CONFIG.branch);
+        if (staleCur.ok) {
+          const staleSha = (await staleCur.json()).sha;
+          await gh("/contents/" + stalePath, {
+            method: "DELETE",
+            body: JSON.stringify({ message: "remove superseded week-" + pad(w) + "." + staleExt, sha: staleSha, branch: CONFIG.branch })
+          });
+        }
+      } catch (e) { /* cleanup best-effort; new file already committed successfully */ }
+    }
+
     pending.delete(w);
     const due = dueAt(SCHEDULE.find(s => s.w === w).due);
     EXPANDED.add(w);
@@ -779,12 +822,41 @@ async function submitWeek(w) {
     loadedNotes.delete(w);
     await refresh(true);
   } catch (e) {
+    if (oldExt) EXT_OF.set(w, oldExt); else EXT_OF.delete(w);
     setMsg(w, "Failed: " + e.message, "bad");
     armSubmit(w, true);
   }
 }
 
 const loadedNotes = new Set(); // weeks whose preview has already been fetched this session
+
+async function renderPdf(box, bytes) {
+  if (!window.pdfjsLib) { box.innerHTML = '<p class="msg bad">PDF viewer failed to load. Refresh the page.</p>'; return; }
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js";
+  box.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "pdf-view";
+  box.appendChild(wrap);
+
+  const doc = await window.pdfjsLib.getDocument({ data: bytes }).promise;
+  for (let p = 1; p <= doc.numPages; p++) {
+    const page = await doc.getPage(p);
+    const targetWidth = Math.min(wrap.clientWidth || 720, 900);
+    const baseViewport = page.getViewport({ scale: 1 });
+    const scale = (targetWidth / baseViewport.width) * (window.devicePixelRatio || 1);
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement("canvas");
+    canvas.className = "pdf-page";
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    canvas.style.width = (viewport.width / (window.devicePixelRatio || 1)) + "px";
+    canvas.style.height = (viewport.height / (window.devicePixelRatio || 1)) + "px";
+    wrap.appendChild(canvas);
+
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+  }
+}
 
 async function viewNotes(w, force) {
   const box = $("view-" + w);
@@ -795,13 +867,21 @@ async function viewNotes(w, force) {
   try {
     const r = await gh("/contents/" + fpath(w) + "?ref=" + CONFIG.branch);
     if (!r.ok) throw new Error("status " + r.status);
-    const text = b64decode((await r.json()).content);
-    if (window.marked && window.DOMPurify) {
-      box.innerHTML = DOMPurify.sanitize(marked.parse(text));
+    const data = await r.json();
+    const isPdf = /\.pdf$/i.test(fname(w));
+
+    if (isPdf) {
+      const bytes = b64decodeBytes(data.content);
+      await renderPdf(box, bytes);
     } else {
-      const pre = document.createElement("pre");
-      pre.textContent = text;
-      box.innerHTML = ""; box.appendChild(pre);
+      const text = b64decode(data.content);
+      if (window.marked && window.DOMPurify) {
+        box.innerHTML = DOMPurify.sanitize(marked.parse(text));
+      } else {
+        const pre = document.createElement("pre");
+        pre.textContent = text;
+        box.innerHTML = ""; box.appendChild(pre);
+      }
     }
   } catch (e) {
     loadedNotes.delete(w);
@@ -848,11 +928,18 @@ function wireWeeks() {
 
     const take = file => {
       if (!file) return;
-      if (file.size > 900000) { setMsg(w, "That file is over 900 KB. Trim it or link to the big stuff.", "bad"); return; }
+      if (file.size > 900000) { setMsg(w, "That file is over 900 KB. Files past ~1 MB can't be previewed back on this site once base64-encoded, even though GitHub accepts the upload. Trim it or split it.", "bad"); return; }
+      const isPdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf";
       const fr = new FileReader();
-      fr.onload = () => stage(w, String(fr.result), file.name);
-      fr.onerror = () => setMsg(w, "Could not read that file.", "bad");
-      fr.readAsText(file);
+      if (isPdf) {
+        fr.onload = () => stage(w, { kind: "pdf", bytes: new Uint8Array(fr.result) }, file.name);
+        fr.onerror = () => setMsg(w, "Could not read that file.", "bad");
+        fr.readAsArrayBuffer(file);
+      } else {
+        fr.onload = () => stage(w, { kind: "text", text: String(fr.result) }, file.name);
+        fr.onerror = () => setMsg(w, "Could not read that file.", "bad");
+        fr.readAsText(file);
+      }
     };
 
     input.addEventListener("change", () => take(input.files[0]));
