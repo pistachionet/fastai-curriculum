@@ -397,7 +397,9 @@ const TKEY  = "fastai-course-token";
 const DAY   = 86400000;
 
 const pad    = n => String(n).padStart(2, "0");
-const EXT_OF = new Map(); // week -> "md" | "pdf", learned from what's actually in the repo or just staged
+const EXT_OF = new Map(); // week -> "md" | "pdf" | "jpg" | "jpeg" | "png" | "webp" | "heic", learned from the repo or a staged file
+const IMG_EXT = ["jpg", "jpeg", "png", "webp", "heic"];
+const isImgExt = e => IMG_EXT.indexOf(String(e).toLowerCase()) !== -1;
 const fname  = w => "week-" + pad(w) + "." + (EXT_OF.get(w) || "md");
 const fpath  = w => CONFIG.dir + "/" + fname(w);
 const fileUrl= w => REPO + "/blob/" + CONFIG.branch + "/" + fpath(w);
@@ -459,6 +461,14 @@ gh.raw = async function (path, opts = {}) {
   if (t) headers.Authorization = "Bearer " + t;
   return fetch("https://api.github.com" + path, Object.assign({}, opts, { headers }));
 };
+// fetch a file's actual bytes. the plain contents endpoint only inlines base64 for files under ~1MB,
+// so ask for the raw media type instead, which has no such limit.
+async function ghContentRaw(path) {
+  const headers = { Accept: "application/vnd.github.raw" };
+  const t = token.get();
+  if (t) headers.Authorization = "Bearer " + t;
+  return fetch(API + "/contents/" + path + "?ref=" + CONFIG.branch, { headers });
+}
 
 /* ---------- read state from the repo ---------- */
 async function loadState() {
@@ -478,11 +488,11 @@ async function loadState() {
 
     const list = await r.json();
     for (const f of (Array.isArray(list) ? list : [])) {
-      const m = /^week-(\d{2})\.(md|pdf)$/.exec(f.name);
+      const m = /^week-(\d{2})\.(md|pdf|jpg|jpeg|png|webp|heic)$/i.exec(f.name);
       if (m) {
-        const wk = Number(m[1]);
-        out.files.set(wk, { sha: f.sha, size: f.size, ext: m[2] });
-        EXT_OF.set(wk, m[2]);
+        const wk = Number(m[1]), ext = m[2].toLowerCase();
+        out.files.set(wk, { sha: f.sha, size: f.size, ext: ext });
+        EXT_OF.set(wk, ext);
       }
     }
 
@@ -591,8 +601,8 @@ function weekBody(r) {
     '<div class="sub-box" data-week="' + r.w + '">' +
       '<h5 style="font:600 11.5px var(--mono);color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin:0 0 9px">' + (r.has ? "Resubmit" : "Submit") + "</h5>" +
       '<div class="drop" id="drop-' + r.w + '"><b>Drop your notes here</b> or <button class="btn sm" data-act="pick" data-w="' + r.w + '">choose a file</button><br>' +
-        '<span style="font-size:12px">.md, .txt, or .pdf · saved to ' + fpath(r.w) + '</span></div>' +
-      '<input type="file" accept=".md,.markdown,.txt,.pdf,text/plain,text/markdown,application/pdf" id="file-' + r.w + '" hidden>' +
+        '<span style="font-size:12px">notes as .md/.txt, or a scan/photo as .pdf, .jpg, .png · saved to ' + fpath(r.w) + '</span></div>' +
+      '<input type="file" accept=".md,.markdown,.txt,.pdf,.jpg,.jpeg,.png,.webp,.heic,text/plain,text/markdown,application/pdf,image/*" id="file-' + r.w + '" hidden>' +
       '<div class="sub-actions">' +
         '<span class="sp"></span>' +
         '<button class="btn pri sm" data-act="submit" data-w="' + r.w + '" disabled>' + (r.has ? "Replace submission" : "Submit notes") + "</button>" +
@@ -750,12 +760,15 @@ function armSubmit(w, on) {
 function canSubmit() { return !!token.get() && VERIFIED_OWNER === true; }
 
 function stage(w, payload, label) {
-  // payload: { kind: "text", text } or { kind: "pdf", bytes: Uint8Array }
+  // payload: { kind: "text", text } | { kind: "pdf"|"img", ext, bytes: Uint8Array }
+  const isBin = payload.kind === "pdf" || payload.kind === "img";
   if (payload.kind === "text" && !payload.text.trim()) { setMsg(w, "That file is empty. Nothing to submit.", "bad"); return; }
-  if (payload.kind === "pdf" && !payload.bytes.length) { setMsg(w, "That file is empty. Nothing to submit.", "bad"); return; }
+  if (isBin && !payload.bytes.length) { setMsg(w, "That file is empty. Nothing to submit.", "bad"); return; }
   pending.set(w, payload);
-  EXT_OF.set(w, payload.kind === "pdf" ? "pdf" : "md");
-  const detail = payload.kind === "pdf" ? Math.round(payload.bytes.length / 1024) + " KB" : payload.text.trim().split(/\s+/).length + " words";
+  EXT_OF.set(w, isBin ? payload.ext : "md");
+  const detail = isBin
+    ? (payload.bytes.length > 1048576 ? (payload.bytes.length / 1048576).toFixed(1) + " MB" : Math.round(payload.bytes.length / 1024) + " KB")
+    : payload.text.trim().split(/\s+/).length + " words";
   setMsg(w, label + " ready · " + detail + ". Press submit to commit it.", "busy");
   armSubmit(w, canSubmit());
   if (!token.get()) setMsg(w, label + " ready, but no token connected. Connect GitHub above to submit.", "bad");
@@ -764,6 +777,7 @@ function stage(w, payload, label) {
 
 async function submitWeek(w) {
   const payload = pending.get(w);
+  const isBin = payload && (payload.kind === "pdf" || payload.kind === "img");
   const empty = !payload || (payload.kind === "text" ? !payload.text.trim() : !payload.bytes || !payload.bytes.length);
   if (empty) { setMsg(w, "Nothing staged to submit.", "bad"); return; }
   if (!canSubmit()) { setMsg(w, !token.get() ? "Connect a GitHub token first." : "This token does not belong to the repo owner. Cannot submit.", "bad"); return; }
@@ -771,7 +785,7 @@ async function submitWeek(w) {
   armSubmit(w, false);
   setMsg(w, "Committing…", "busy");
 
-  const newExt = payload.kind === "pdf" ? "pdf" : "md";
+  const newExt = isBin ? payload.ext : "md";
   const oldExt = EXT_OF.get(w); // extension currently live in the repo, before this submit
   const staleExt = oldExt && oldExt !== newExt ? oldExt : null; // e.g. replacing a .md with a .pdf
   EXT_OF.set(w, newExt); // fpath(w) below must reflect the new extension
@@ -785,7 +799,7 @@ async function submitWeek(w) {
 
     const body = {
       message: "submit week-" + pad(w),
-      content: payload.kind === "pdf" ? bytesToB64(payload.bytes) : b64encode(payload.text),
+      content: isBin ? bytesToB64(payload.bytes) : b64encode(payload.text),
       branch: CONFIG.branch
     };
     if (sha) body.sha = sha;
@@ -865,16 +879,29 @@ async function viewNotes(w, force) {
   loadedNotes.add(w);
   box.innerHTML = '<p class="msg busy">Loading…</p>';
   try {
-    const r = await gh("/contents/" + fpath(w) + "?ref=" + CONFIG.branch);
+    const ext = (EXT_OF.get(w) || "md").toLowerCase();
+    // raw media type has no ~1MB inline limit, so this works for scans and photos of any reasonable size
+    const r = await ghContentRaw(fpath(w));
     if (!r.ok) throw new Error("status " + r.status);
-    const data = await r.json();
-    const isPdf = /\.pdf$/i.test(fname(w));
 
-    if (isPdf) {
-      const bytes = b64decodeBytes(data.content);
+    if (ext === "pdf") {
+      const bytes = new Uint8Array(await r.arrayBuffer());
       await renderPdf(box, bytes);
+    } else if (isImgExt(ext)) {
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      box.innerHTML = "";
+      const wrap = document.createElement("div");
+      wrap.className = "pdf-view";
+      const img = document.createElement("img");
+      img.className = "pdf-page";
+      img.alt = "Submitted notes for week " + pad(w);
+      img.src = url;
+      img.addEventListener("load", () => URL.revokeObjectURL(url), { once: true });
+      wrap.appendChild(img);
+      box.appendChild(wrap);
     } else {
-      const text = b64decode(data.content);
+      const text = await r.text();
       if (window.marked && window.DOMPurify) {
         box.innerHTML = DOMPurify.sanitize(marked.parse(text));
       } else {
@@ -926,18 +953,57 @@ function wireWeeks() {
     const input = $("file-" + w), drop = $("drop-" + w);
     if (!input || !drop) return;
 
+    // phone photos are often 5-12MB and sometimes HEIC, which most browsers cannot display.
+    // re-encode to a sensible JPEG so it commits smaller and actually renders back on the page.
+    const toJpeg = file => new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 2200; // plenty to read handwriting, far smaller than a raw phone photo
+        let width = img.naturalWidth, height = img.naturalHeight;
+        if (Math.max(width, height) > maxDim) {
+          const s = maxDim / Math.max(width, height);
+          width = Math.round(width * s); height = Math.round(height * s);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        canvas.toBlob(blob => {
+          URL.revokeObjectURL(url);
+          if (!blob) { reject(new Error("could not re-encode that image")); return; }
+          blob.arrayBuffer().then(buf => resolve(new Uint8Array(buf))).catch(reject);
+        }, "image/jpeg", 0.85);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("browser could not open that image format")); };
+      img.src = url;
+    });
+
     const take = file => {
       if (!file) return;
-      if (file.size > 900000) { setMsg(w, "That file is over 900 KB. Files past ~1 MB can't be previewed back on this site once base64-encoded, even though GitHub accepts the upload. Trim it or split it.", "bad"); return; }
-      const isPdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf";
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      const isPdf = ext === "pdf" || file.type === "application/pdf";
+      const isImg = isImgExt(ext) || /^image\//.test(file.type || "");
+      // GitHub's own API refuses uploads well before this; anything near it belongs in the repo via git, not a browser POST
+      if (file.size > 40 * 1024 * 1024) {
+        setMsg(w, "That file is over 40 MB, too big to push through the API from a browser. Compress it or commit it with git directly.", "bad");
+        return;
+      }
+
+      if (isImg) {
+        setMsg(w, "Processing image…", "busy");
+        toJpeg(file)
+          .then(bytes => stage(w, { kind: "img", ext: "jpg", bytes }, file.name))
+          .catch(err => setMsg(w, "Could not process that image: " + err.message, "bad"));
+        return;
+      }
+
       const fr = new FileReader();
+      fr.onerror = () => setMsg(w, "Could not read that file.", "bad");
       if (isPdf) {
-        fr.onload = () => stage(w, { kind: "pdf", bytes: new Uint8Array(fr.result) }, file.name);
-        fr.onerror = () => setMsg(w, "Could not read that file.", "bad");
+        fr.onload = () => stage(w, { kind: "pdf", ext: "pdf", bytes: new Uint8Array(fr.result) }, file.name);
         fr.readAsArrayBuffer(file);
       } else {
         fr.onload = () => stage(w, { kind: "text", text: String(fr.result) }, file.name);
-        fr.onerror = () => setMsg(w, "Could not read that file.", "bad");
         fr.readAsText(file);
       }
     };
