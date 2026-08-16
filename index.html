@@ -282,7 +282,7 @@ footer a:hover{color:var(--blue)}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 const CONFIG = { owner: "pistachionet", repo: "fastai-curriculum", branch: "main", dir: "notes" };
 
@@ -460,7 +460,9 @@ async function gh(path, opts = {}) {
   const headers = Object.assign({ Accept: "application/vnd.github+json" }, opts.headers || {});
   const t = token.get();
   if (t) headers.Authorization = "Bearer " + t;
-  return fetch(API + path, Object.assign({}, opts, { headers }));
+  // GitHub sends cache-control: private, max-age=60. without no-store the browser will happily
+  // serve a directory listing from before your commit, so a fresh submission looks like it vanished.
+  return fetch(API + path, Object.assign({ cache: "no-store" }, opts, { headers }));
 }
 gh.raw = async function (path, opts = {}) {
   const headers = Object.assign({ Accept: "application/vnd.github+json" }, opts.headers || {});
@@ -470,12 +472,18 @@ gh.raw = async function (path, opts = {}) {
 };
 // fetch a file's actual bytes. the plain contents endpoint only inlines base64 for files under ~1MB,
 // so ask for the raw media type instead, which has no such limit.
+// the URL carries a unique marker because this hits the same path as the JSON metadata request and
+// GitHub's Vary header does not separate them, so without it the browser will hand raw PDF bytes
+// to a caller expecting JSON.
 async function ghContentRaw(path) {
   const headers = { Accept: "application/vnd.github.raw" };
   const t = token.get();
   if (t) headers.Authorization = "Bearer " + t;
-  return fetch(API + "/contents/" + path + "?ref=" + CONFIG.branch, { headers });
+  const bust = "&_raw=" + Date.now();
+  return fetch(API + "/contents/" + path + "?ref=" + CONFIG.branch + bust, { headers, cache: "no-store" });
 }
+
+const pending = new Map(); // week -> payload staged but not yet committed
 
 /* ---------- read state from the repo ---------- */
 async function loadState() {
@@ -494,13 +502,20 @@ async function loadState() {
     if (!r.ok) { out.state = "error"; return out; }
 
     const list = await r.json();
+    const seen = new Set();
     for (const f of (Array.isArray(list) ? list : [])) {
       const m = /^week-(\d{2})\.(md|pdf|jpg|jpeg|png|webp|heic)$/i.exec(f.name);
       if (m) {
         const wk = Number(m[1]), ext = m[2].toLowerCase();
         out.files.set(wk, { sha: f.sha, size: f.size, ext: ext });
         EXT_OF.set(wk, ext);
+        seen.add(wk);
       }
+    }
+    // the repo is the source of truth: forget extensions for weeks that no longer have a file,
+    // except any week with a file staged but not yet committed
+    for (const wk of Array.from(EXT_OF.keys())) {
+      if (!seen.has(wk) && !pending.has(wk)) EXT_OF.delete(wk);
     }
 
     // one call gives submission times for everything, via our own commit messages
@@ -569,6 +584,7 @@ function tagFor(r) {
 /* ---------- render ---------- */
 let STATE = { rows: [], openWeek: null, state: "ok", files: new Map() };
 let FLASH = null;              // { w, text, kind } survives a re-render
+const FORCE_VIEW = new Set();  // weeks whose file just changed, so the preview must refetch
 let EXPANDED = new Set();      // weeks the reader has opened, kept across renders
 
 function captureExpanded() {
@@ -754,7 +770,7 @@ function render() {
 
 /* ---------- submission ---------- */
 let VERIFIED_OWNER = null; // true once we confirm the connected token belongs to CONFIG.owner
-const pending = new Map(); // week -> text waiting to be submitted
+
 
 function setMsg(w, text, kind) {
   const el = $("msg-" + w);
@@ -800,8 +816,22 @@ async function submitWeek(w) {
   try {
     // always re-read the sha so replacing a file cannot clobber a newer version
     let sha = null;
-    const cur = await gh("/contents/" + fpath(w) + "?ref=" + CONFIG.branch);
-    if (cur.ok) sha = (await cur.json()).sha;
+    const cur = await gh("/contents/" + fpath(w) + "?ref=" + CONFIG.branch + "&_meta=" + Date.now());
+    if (cur.ok) {
+      const raw = await cur.text();
+      try {
+        sha = JSON.parse(raw).sha;
+      } catch (e) {
+        // a cached raw file body can land here instead of metadata; retry once, uncached
+        const again = await gh("/contents/" + fpath(w) + "?ref=" + CONFIG.branch + "&_meta=" + (Date.now() + 1));
+        if (again.ok) {
+          try { sha = JSON.parse(await again.text()).sha; }
+          catch (e2) { throw new Error("could not read the existing file's metadata. Hard refresh the page and try again."); }
+        } else if (again.status !== 404) {
+          throw new Error("could not check existing file (" + again.status + ")");
+        }
+      }
+    }
     else if (cur.status !== 404) throw new Error("could not check existing file (" + cur.status + ")");
 
     const body = {
@@ -825,7 +855,7 @@ async function submitWeek(w) {
     if (staleExt) {
       try {
         const stalePath = CONFIG.dir + "/week-" + pad(w) + "." + staleExt;
-        const staleCur = await gh("/contents/" + stalePath + "?ref=" + CONFIG.branch);
+        const staleCur = await gh("/contents/" + stalePath + "?ref=" + CONFIG.branch + "&_meta=" + Date.now());
         if (staleCur.ok) {
           const staleSha = (await staleCur.json()).sha;
           await gh("/contents/" + stalePath, {
@@ -840,7 +870,7 @@ async function submitWeek(w) {
     const due = dueAt(SCHEDULE.find(s => s.w === w).due);
     EXPANDED.add(w);
     FLASH = { w, kind: "good", text: Date.now() <= due ? "Submitted on time." : "Submitted late. It still counts." };
-    loadedNotes.delete(w);
+    FORCE_VIEW.add(w); // this week's file just changed, so its preview must refetch, not reuse
     await refresh(true);
   } catch (e) {
     if (oldExt) EXT_OF.set(w, oldExt); else EXT_OF.delete(w);
@@ -849,11 +879,25 @@ async function submitWeek(w) {
   }
 }
 
-const loadedNotes = new Set(); // weeks whose preview has already been fetched this session
+
 
 async function renderPdf(box, bytes) {
-  if (!window.pdfjsLib) { box.innerHTML = '<p class="msg bad">PDF viewer failed to load. Refresh the page.</p>'; return; }
-  window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js";
+  if (!window.pdfjsLib) {
+    // library did not load (offline, blocked CDN, adblocker). fall back to the browser's own viewer
+    // rather than leaving the reader with nothing.
+    const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+    box.innerHTML = "";
+    const note = document.createElement("p");
+    note.className = "msg";
+    note.textContent = "Using the browser's built in PDF viewer.";
+    const frame = document.createElement("iframe");
+    frame.src = url;
+    frame.style.cssText = "width:100%;height:70vh;border:1px solid var(--rule);border-radius:5px";
+    box.appendChild(note);
+    box.appendChild(frame);
+    return;
+  }
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   box.innerHTML = "";
   const wrap = document.createElement("div");
   wrap.className = "pdf-view";
@@ -916,8 +960,11 @@ async function renderPdf(box, bytes) {
 async function viewNotes(w, force) {
   const box = $("view-" + w);
   if (!box) return;
-  if (loadedNotes.has(w) && !force) return;
-  loadedNotes.add(w);
+  // every render rebuilds this box empty, so a session-wide "already fetched" flag would leave it
+  // stuck on Loading forever. ask the box itself whether it currently holds anything.
+  if (!force && box.dataset.loaded === "1" && box.childElementCount && !box.querySelector(".msg.busy")) return;
+  if (box.dataset.loading === "1") return; // a fetch for this box is already in flight
+  box.dataset.loading = "1";
   box.innerHTML = '<p class="msg busy">Loading…</p>';
   try {
     const ext = (EXT_OF.get(w) || "md").toLowerCase();
@@ -927,7 +974,17 @@ async function viewNotes(w, force) {
 
     if (ext === "pdf") {
       const bytes = new Uint8Array(await r.arrayBuffer());
-      await renderPdf(box, bytes);
+      try {
+        await renderPdf(box, bytes);
+      } catch (err) {
+        // rendering can still fail on unusual PDFs; show it in the browser's viewer instead of nothing
+        const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+        box.innerHTML = "";
+        const frame = document.createElement("iframe");
+        frame.src = url;
+        frame.style.cssText = "width:100%;height:70vh;border:1px solid var(--rule);border-radius:5px";
+        box.appendChild(frame);
+      }
     } else if (isImgExt(ext)) {
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
@@ -951,9 +1008,13 @@ async function viewNotes(w, force) {
         box.innerHTML = ""; box.appendChild(pre);
       }
     }
+    box.dataset.loaded = "1";
+    delete box.dataset.loading;
   } catch (e) {
-    loadedNotes.delete(w);
-    box.innerHTML = '<p class="msg bad">Could not load the file: ' + esc(e.message) + "</p>";
+    delete box.dataset.loaded;
+    delete box.dataset.loading;
+    box.innerHTML = '<p class="msg bad">Could not load the file: ' + esc(e.message) +
+      ' <button class="btn sm" data-act="retry-view" data-w="' + w + '" style="padding:1px 8px">retry</button></p>';
   }
 }
 
@@ -966,12 +1027,14 @@ function wireWeeks() {
       if (act === "pick")   $("file-" + w).click();
       if (act === "submit") submitWeek(w);
       if (act === "view")   viewNotes(w);
+      if (act === "retry-view") viewNotes(w, true);
       if (act === "toggle-view") {
         const box = $("view-" + w);
         const btn = ev.currentTarget;
         const hidden = box.style.display === "none";
         box.style.display = hidden ? "" : "none";
         btn.textContent = hidden ? "hide preview" : "show preview";
+        if (hidden) viewNotes(w); // fill it if it was hidden before it ever loaded
       }
     });
   });
@@ -979,13 +1042,13 @@ function wireWeeks() {
   // auto-load the preview for any submitted week that's expanded on screen
   document.querySelectorAll("details.wk[open]").forEach(el => {
     const w = Number(el.dataset.week);
-    if ($("view-" + w)) viewNotes(w);
+    if ($("view-" + w)) { const f = FORCE_VIEW.delete(w); viewNotes(w, f); }
   });
   document.querySelectorAll("details.wk").forEach(el => {
     el.addEventListener("toggle", () => {
       if (el.open) {
         const w = Number(el.dataset.week);
-        if ($("view-" + w)) viewNotes(w);
+        if ($("view-" + w)) { const f = FORCE_VIEW.delete(w); viewNotes(w, f); }
       }
     });
   });
