@@ -164,6 +164,8 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(32px,5.4vw,50px);l
 
 /* rendered notes */
 .viewer{margin:14px 0 0;border:1px solid var(--rule);background:var(--panel);border-radius:7px;padding:6px 18px 16px;max-height:520px;overflow:auto}
+/* scans and photos deserve more room than a wall of markdown */
+.viewer:has(.pdf-view){max-height:78vh;padding:6px 10px 12px}
 .viewer[hidden]{display:none}
 .viewer h1,.viewer h2,.viewer h3{font-family:var(--display);letter-spacing:-.01em;line-height:1.25;margin:18px 0 7px}
 .viewer h1{font-size:22px}.viewer h2{font-size:18px}.viewer h3{font-size:16px}
@@ -178,6 +180,11 @@ h1{font-family:var(--display);font-weight:700;font-size:clamp(32px,5.4vw,50px);l
 
 .pdf-view{display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:8px}
 .pdf-page{max-width:100%;border:1px solid var(--rule);border-radius:5px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+/* a tall continuous scan is rendered as stacked slices; join them so they read as one page */
+.pdf-view .pdf-slice{border-radius:0;box-shadow:none;border-top:none;border-bottom:none;margin:0}
+.pdf-view .pdf-slice:first-of-type{border-top:1px solid var(--rule);border-radius:5px 5px 0 0}
+.pdf-view .pdf-slice:last-of-type{border-bottom:1px solid var(--rule);border-radius:0 0 5px 5px}
+.pdf-view:has(.pdf-slice){gap:0}
 
 footer{margin-top:44px;border-top:2px solid var(--ink);padding-top:15px;font:400 12.5px/1.9 var(--mono);color:var(--muted)}
 footer a{color:var(--muted)}
@@ -853,22 +860,56 @@ async function renderPdf(box, bytes) {
   box.appendChild(wrap);
 
   const doc = await window.pdfjsLib.getDocument({ data: bytes }).promise;
+
+  // browsers refuse to allocate canvases past roughly 16384px per side and enforce a total pixel
+  // budget too. a long continuous scan blows through both. shrinking it to fit would make the
+  // handwriting unreadable, so render tall pages as a stack of full-width horizontal slices.
+  const MAX_SIDE = 12000;
+  const MAX_PIXELS = 24e6;
+
   for (let p = 1; p <= doc.numPages; p++) {
     const page = await doc.getPage(p);
     const targetWidth = Math.min(wrap.clientWidth || 720, 900);
-    const baseViewport = page.getViewport({ scale: 1 });
-    const scale = (targetWidth / baseViewport.width) * (window.devicePixelRatio || 1);
+    const base = page.getViewport({ scale: 1 });
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    // scale chosen purely for legibility at the display width, not to satisfy canvas limits
+    const scale = (targetWidth / base.width) * dpr;
     const viewport = page.getViewport({ scale });
+    const fullW = Math.floor(viewport.width);
+    const fullH = Math.floor(viewport.height);
 
-    const canvas = document.createElement("canvas");
-    canvas.className = "pdf-page";
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    canvas.style.width = (viewport.width / (window.devicePixelRatio || 1)) + "px";
-    canvas.style.height = (viewport.height / (window.devicePixelRatio || 1)) + "px";
-    wrap.appendChild(canvas);
+    // how tall a slice can be while staying inside both canvas limits
+    const maxSliceH = Math.max(1, Math.min(MAX_SIDE, Math.floor(MAX_PIXELS / fullW)));
+    const slices = Math.ceil(fullH / maxSliceH);
 
-    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    for (let s = 0; s < slices; s++) {
+      const sliceTop = s * maxSliceH;
+      const sliceH = Math.min(maxSliceH, fullH - sliceTop);
+
+      const canvas = document.createElement("canvas");
+      canvas.className = "pdf-page" + (slices > 1 ? " pdf-slice" : "");
+      canvas.width = fullW;
+      canvas.height = sliceH;
+      canvas.style.width = targetWidth + "px";
+      canvas.style.height = (sliceH * (targetWidth / fullW)) + "px";
+      wrap.appendChild(canvas);
+
+      const ctx = canvas.getContext("2d");
+      // shift the page up so this slice lands on the canvas
+      ctx.translate(0, -sliceTop);
+
+      try {
+        await page.render({ canvasContext: ctx, viewport }).promise;
+      } catch (e) {
+        canvas.remove();
+        const note = document.createElement("p");
+        note.className = "msg bad";
+        note.textContent = "Part of page " + p + " was too large to render here. Open it on GitHub to view full size.";
+        wrap.appendChild(note);
+        break;
+      }
+    }
   }
 }
 
