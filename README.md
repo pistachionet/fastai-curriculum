@@ -8,28 +8,26 @@ Course material is by Jeremy Howard and the fast.ai team. This repo is a persona
 
 ## The schedule
 
-Aug 16, 2026 to Jan 24, 2027. Notes are due Sunday 11:59pm local. Paced for about 5 hours a week, spread across weekday evenings rather than one sitting.
+Aug 16, 2026 to Nov 8, 2026. Notes are due Sunday 11:59pm local. Paced for about 5 hours a week, spread across weekday evenings rather than one sitting.
 
-Most lessons run 2 weeks. The three hands-on, build-it-from-scratch lessons (3, 5, 8) get 3 weeks, since writing a training loop by hand doesn't compress into a single week at this pace. Review weeks stay at 1.
+One session per week, due Sunday. Week 1 keeps its original date since it is already submitted. Everything from lesson 3 onward runs on the compressed autumn schedule.
 
 | Week | Due | Session | Reading |
 | --- | --- | --- | --- |
 | 1 | Aug 16 | Lesson 1: Getting started | ch 1 |
-| 2 | Aug 23 | Lesson 2: Deployment | ch 2 |
-| 3 | Sep 6 | Lesson 3: Neural net foundations (3 wks) | ch 4 |
-| 4 | Sep 27 | Review week | ch 1, 2, 4 questionnaires |
-| 5 | Oct 11 | Lesson 4: Natural Language (NLP) | ch 10 |
-| 6 | Oct 25 | Lesson 5: From-scratch model (3 wks) | ch 4 and 9 |
-| 7 | Nov 15 | Lesson 6: Random forests | ch 9 |
-| 8 | Nov 29 | Review week | |
-| 9 | Dec 6 | Lesson 7: Collaborative filtering | ch 8 |
-| 10 | Dec 20 | Lesson 8: Convolutions (CNNs) (3 wks) | ch 13 |
-| 11 | Jan 10 | Bonus: Data ethics | ch 3 |
-| 12 | Jan 24 | Final project and retrospective | |
+| 2 | Sep 13 | Lesson 3: Neural net foundations | ch 4 |
+| 3 | Sep 20 | Lesson 4: Natural Language (NLP) | ch 10 |
+| 4 | Sep 27 | Lesson 5: From-scratch model | ch 4 and 9 |
+| 5 | Oct 4 | Catch-up and review | ch 1, 2, 4 questionnaires |
+| 6 | Oct 11 | Lesson 6: Random forests | ch 9 |
+| 7 | Oct 18 | Lesson 7: Collaborative filtering | ch 8 |
+| 8 | Oct 25 | Lesson 8: Convolutions (CNNs) | ch 13 |
+| 9 | Nov 1 | Bonus: Data ethics | ch 3 |
+| 10 | Nov 8 | Final project and retrospective | |
 
 Lesson to chapter mapping is taken from the lesson pages on course.fast.ai, not guessed.
 
-Budget is about 3 to 5 hours a week, weekdays. The review weeks and the extra time on lessons 3, 5, and 8 exist because a schedule with no slack becomes fiction the first time a week goes badly. Use them to catch up if you are behind and to rebuild things from memory if you are not.
+Budget is about 3 to 5 hours a week, weekdays. Week 5 is the one piece of slack in the schedule. Use it to catch up if you are behind and to rebuild things from memory if you are not.
 
 ## Submitting
 

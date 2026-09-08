@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Practical Deep Learning · self-paced section</title>
-<meta name="description" content="A self-run section of fast.ai Practical Deep Learning for Coders. Twelve weeks, notes due Sundays, submitted to GitHub.">
+<meta name="description" content="A self-run section of fast.ai Practical Deep Learning for Coders. Ten weeks, notes due Sundays, submitted to GitHub.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2218%22 fill=%22%232c5fa8%22/><circle cx=%2250%22 cy=%2250%22 r=%2222%22 fill=%22none%22 stroke=%22white%22 stroke-width=%229%22/><circle cx=%2250%22 cy=%2250%22 r=%226%22 fill=%22white%22/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -221,7 +221,7 @@ footer a:hover{color:var(--blue)}
     <button class="btn sm" id="theme-btn" aria-label="Toggle dark mode" style="flex-shrink:0">&#9789;</button>
   </div>
   <h1>Practical Deep Learning for Coders</h1>
-  <p class="sub">A self-run section of <a href="https://course.fast.ai/">course.fast.ai</a> taught by Jeremy Howard. Twelve weeks. Each week: watch the lecture, work the notebooks, read the chapter, then submit notes. Notes are due Sunday night and are stored in this site's own GitHub repo.</p>
+  <p class="sub">A self-run section of <a href="https://course.fast.ai/">course.fast.ai</a> taught by Jeremy Howard. Ten weeks. Each week: watch the lecture, work the notebooks, read the chapter, then submit notes. Notes are due Sunday night and are stored in this site's own GitHub repo.</p>
 </header>
 
 <div class="conn" id="conn">
@@ -288,8 +288,8 @@ const CONFIG = { owner: "pistachionet", repo: "fastai-curriculum", branch: "main
 
 const MODULES = [
   { id: 1, name: "Getting things working",  r: "weeks 1 to 4"  },
-  { id: 2, name: "Models you build yourself", r: "weeks 5 to 8"  },
-  { id: 3, name: "Under the hood",          r: "weeks 9 to 12" }
+  { id: 2, name: "Models you build yourself", r: "weeks 5 to 7"  },
+  { id: 3, name: "Under the hood",          r: "weeks 8 to 10" }
 ];
 
 const SCHEDULE = [
@@ -303,18 +303,7 @@ const SCHEDULE = [
          ["Jupyter Notebook 101","https://www.kaggle.com/code/jhoward/jupyter-notebook-101"]],
     do:"Finish the bird notebook, then train the same kind of classifier on a category you pick and search for yourself. Answer the chapter 1 questionnaire in your notes." },
 
-  { w:2, mod:1, due:"2026-08-23", hrs:4,
-    title:"Lesson 2: Deployment",
-    lesson:"https://course.fast.ai/Lessons/lesson2.html",
-    video:"https://www.youtube.com/watch?v=F4tvM4Vb3A0",
-    read:"Book chapter 2, From Model to Production",
-    readUrl:"https://github.com/fastai/fastbook/blob/master/02_production.ipynb",
-    nbs:[["Saving a basic fastai model (Colab)","https://colab.research.google.com/drive/1M-mzhZdFQ2XWBSbLCuKzrmLsm0aLEYxQ?usp=sharing"],
-         ["Saving a basic fastai model (Kaggle)","https://www.kaggle.com/jhoward/saving-a-basic-fastai-model"],
-         ["Hugging Face Spaces","https://huggingface.co/spaces"]],
-    do:"Put week 1's model on the internet as a Gradio app on Hugging Face Spaces. Paste the live URL at the top of your notes." },
-
-  { w:3, mod:1, due:"2026-09-06", hrs:4,
+  { w:2, mod:1, due:"2026-09-13", hrs:4,
     title:"Lesson 3: Neural net foundations",
     lesson:"https://course.fast.ai/Lessons/lesson3.html",
     video:"https://www.youtube.com/watch?v=hBBOjCiFcuo",
@@ -324,11 +313,7 @@ const SCHEDULE = [
          ["Which image models are best?","https://www.kaggle.com/code/jhoward/which-image-models-are-best/"]],
     do:"This is the first hard week. Write out what gradient descent does step by step, in your own words, without looking. If you cannot, that is the signal to rewatch before moving on." },
 
-  { w:4, mod:1, due:"2026-09-27", hrs:4, review:true,
-    title:"Review week: consolidate lessons 1 to 3",
-    do:"No new lesson. Rebuild one notebook from lessons 1 to 3 in an empty file, from memory, looking things up only when stuck. Then answer the questionnaires for chapters 1, 2, and 4. Your notes this week are the answers plus a short list of what you could not do without help." },
-
-  { w:5, mod:2, due:"2026-10-11", hrs:4,
+  { w:3, mod:1, due:"2026-09-20", hrs:4,
     title:"Lesson 4: Natural Language (NLP)",
     lesson:"https://course.fast.ai/Lessons/lesson4.html",
     video:"https://www.youtube.com/watch?v=toUgBQv1BT8",
@@ -338,7 +323,7 @@ const SCHEDULE = [
          ["US Patent Phrase to Phrase Matching","https://www.kaggle.com/competitions/us-patent-phrase-to-phrase-matching"]],
     do:"Run the patent phrase matching notebook end to end. In your notes, explain what a token and an embedding are without using either word in the definition." },
 
-  { w:6, mod:2, due:"2026-10-25", hrs:4,
+  { w:4, mod:1, due:"2026-09-27", hrs:5,
     title:"Lesson 5: From-scratch model",
     lesson:"https://course.fast.ai/Lessons/lesson5.html",
     video:"https://www.youtube.com/watch?v=_rXzeWq4C6w",
@@ -348,7 +333,11 @@ const SCHEDULE = [
          ["Why you should use a framework","https://www.kaggle.com/code/jhoward/why-you-should-use-a-framework"]],
     do:"Build the Titanic model up from a linear model to a net with a hidden layer, writing the training loop yourself. Record your accuracy at each stage in a small table." },
 
-  { w:7, mod:2, due:"2026-11-15", hrs:4,
+  { w:5, mod:2, due:"2026-10-04", hrs:3, review:true,
+    title:"Catch-up and review",
+    do:"No new lesson. Rebuild one notebook from the lessons so far in an empty file, from memory, looking things up only when stuck. Then answer the questionnaires for chapters 1, 2, and 4. Your notes this week are the answers plus a short list of what you could not do without help." },
+
+  { w:6, mod:2, due:"2026-10-11", hrs:4,
     title:"Lesson 6: Random forests",
     lesson:"https://course.fast.ai/Lessons/lesson6.html",
     video:"https://www.youtube.com/watch?v=AdhG64NF76E",
@@ -358,11 +347,7 @@ const SCHEDULE = [
          ["Road to the top, part 1","https://www.kaggle.com/code/jhoward/first-steps-road-to-the-top-part-1"]],
     do:"Build a random forest from scratch, then use feature importance to say something about the data you did not know before. That observation is the deliverable." },
 
-  { w:8, mod:2, due:"2026-11-29", hrs:5, review:true,
-    title:"Review week: consolidate lessons 4 to 6",
-    do:"No new lesson. Pick the model from lessons 4 to 6 you understand least and rebuild it. Then write a one page explanation of it aimed at someone who has not taken this course. Explaining it is the test." },
-
-  { w:9, mod:3, due:"2026-12-06", hrs:4,
+  { w:7, mod:2, due:"2026-10-18", hrs:4,
     title:"Lesson 7: Collaborative filtering",
     lesson:"https://course.fast.ai/Lessons/lesson7.html",
     video:"https://www.youtube.com/watch?v=p4ZZq0736Po",
@@ -373,7 +358,7 @@ const SCHEDULE = [
          ["Road to the top, part 4","https://www.kaggle.com/code/jhoward/multi-target-road-to-the-top-part-4"]],
     do:"Build the recommender both ways, dot product and neural net. Then look at the learned bias terms and find the item the model thinks people dislike even when they should like it." },
 
-  { w:10, mod:3, due:"2026-12-20", hrs:3,
+  { w:8, mod:3, due:"2026-10-25", hrs:5,
     title:"Lesson 8: Convolutions (CNNs)",
     lesson:"https://course.fast.ai/Lessons/lesson8.html",
     video:"https://www.youtube.com/watch?v=htiNBPxcXgo",
@@ -383,7 +368,7 @@ const SCHEDULE = [
          ["Collaborative filtering and embeddings spreadsheet","https://github.com/fastai/course22/blob/master/xl/collab_filter.xlsx"]],
     do:"Work the convolution spreadsheet by hand before touching code. Then explain in your notes what dropout does and why it helps, in three sentences." },
 
-  { w:11, mod:3, due:"2027-01-10", hrs:3,
+  { w:9, mod:3, due:"2026-11-01", hrs:3,
     title:"Bonus lesson: Data ethics",
     lesson:"https://course.fast.ai/Lessons/lesson8a.html",
     video:"https://www.youtube.com/watch?v=krIVOb23EH8",
@@ -392,7 +377,7 @@ const SCHEDULE = [
     nbs:[],
     do:"Pick one case study from the chapter and write a page on it. Then take one model you built in this course and write honestly about how it could go wrong in someone else's hands." },
 
-  { w:12, mod:3, due:"2027-01-24", hrs:5, final:true,
+  { w:10, mod:3, due:"2026-11-08", hrs:5, final:true,
     title:"Final project and course retrospective",
     do:"Build and ship one thing of your own using what this course taught, end to end, deployed somewhere public. Then write the retrospective: what you built, what actually stuck, what you still cannot do, and what you are doing next. Publish it on your blog." }
 ];
@@ -662,7 +647,7 @@ function renderHero(rows, live) {
   } else {
     const last = rows[rows.length - 1];
     hero.innerHTML = '<p class="htag">Section complete</p>' +
-      '<p class="hdate done">All 12 weeks submitted</p>' +
+      '<p class="hdate done">All 10 weeks submitted</p>' +
       '<p class="htitle">Last one: week ' + pad(last.w) + ", due " + fmtFull(last.dueDate) + "</p>";
   }
 
@@ -1211,7 +1196,7 @@ function wireTheme() {
 }
 
 (async function main() {
-  console.assert(SCHEDULE.length === 12, "expected 12 weeks");
+  console.assert(SCHEDULE.length === 10, "expected 10 weeks");
   const slug = CONFIG.owner + "/" + CONFIG.repo;
   for (const id of ["repotop", "repobot"]) {
     const a = $(id); a.href = REPO; a.textContent = id === "repotop" ? slug : "github.com/" + slug;
